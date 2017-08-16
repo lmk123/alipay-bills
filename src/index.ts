@@ -114,11 +114,11 @@ namespace AlipayBills {
       bills.push({
         day: jQuery(tds[0]).find('.time-d').text().trim(),
         time: jQuery(tds[0]).find('.time-h').text().trim(),
-        name: jQuery(tds[1]).find('a').text().trim(),
-        orderNo: jQuery(tds[2]).text().trim(),
-        target: jQuery(tds[3]).text().trim(),
-        amount: jQuery(tds[4]).text().trim(),
-        status: jQuery(tds[5]).text().trim()
+        name: jQuery(tds[2]).find('a').text().trim(),
+        orderNo: jQuery(tds[3]).text().trim(),
+        target: jQuery(tds[4]).text().trim(),
+        amount: jQuery(tds[5]).text().trim(),
+        status: jQuery(tds[7]).text().trim()
       })
     })
     return bills

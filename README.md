@@ -25,7 +25,7 @@ alipayBills.query().then(bills => {
   //  name: string - 对应「我的账单高级版」的「名称」
   //  orderNo: string - 对应「我的账单高级版」的「商户订单号|交易号」
   //  target: string - 对应「我的账单高级版」的「对方」
-  //  amount: string - 对应「我的账单高级版」的「金额|明细」
+  //  amount: string - 对应「我的账单高级版」的「金额」
   //  status: string - 对应「我的账单高级版」的「状态」
   //}
 })
