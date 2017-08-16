@@ -1,10 +1,7 @@
 import { promise, WebElementPromise } from 'selenium-webdriver'
 
 import driver = require('./driver')
-import selenium = require('selenium-webdriver')
 import wait = require('./wait')
-
-const By = selenium.By
 
 const URLs = {
   login: 'https://auth.alipay.com/login/index.htm',
@@ -53,12 +50,12 @@ namespace AlipayBills {
     return driver.get(URLs.login + '?goto=' + encodeURIComponent(URLs.billsAdvanced))
         .then(() => {
           console.log('正在输入用户名……')
-          const userEle = driver.findElement(By.id('J-input-user'))
+          const userEle = driver.findElement({ id: 'J-input-user' })
           return slowInput(userEle, innerUser)
         })
         .then(() => {
           console.log('正在输入密码……')
-          const pwdEle = driver.findElement(By.id('password_rsainput'))
+          const pwdEle = driver.findElement({ id: 'password_rsainput' })
           return slowInput(pwdEle, innerPwd)
         })
         .then(() => {
@@ -70,7 +67,7 @@ namespace AlipayBills {
                 rej()
               }, 5000)
 
-              const loginEle = driver.findElement(By.id('J-login-btn'))
+              const loginEle = driver.findElement({ id: 'J-login-btn' })
               loginEle.click().then(() => {
                 clearTimeout(retryId)
                 res()
