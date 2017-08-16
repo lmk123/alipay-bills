@@ -80,7 +80,24 @@ namespace AlipayBills {
         .then(() => {
           console.log('正在等待浏览器跳转到账单页……')
           return wait(() => driver.getTitle().then(title => title === '我的账单 - 支付宝'))
-          // TODO 判断账单页是否是标准版的，如果是则需要切换到高级版
+        })
+        .then(() => {
+          return new Promise(resolve => {
+            // 高级版有 #main，标准版没有
+            driver.findElements({ id: 'main' }).then(elements => {
+              if (elements.length) {
+                resolve()
+              } else {
+                console.log('检测到当前是标准版账单页，正在跳转到高级版账单页……')
+                driver
+                    .get(URLs.billsSwitch)
+                    .then(() => {
+                      return wait(() => driver.findElements({ id: 'main' }).then(elements => elements.length > 0))
+                    })
+                    .then(resolve)
+              }
+            })
+          })
         })
         .then(() => {
           console.log('登陆成功')
