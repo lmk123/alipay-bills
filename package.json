@@ -1,6 +1,6 @@
 {
   "name": "alipay-bills",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "自动获取支付宝的账单信息。",
   "main": "libs/index.js",
   "types": "libs/index.d.ts",
