@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "moduleResolution": "node",
+    "strict": true,
+    "declaration": true,
+    "module": "commonjs",
+    "outDir": "libs",
+    "target": "es5",
+    "lib": [
+      "es2016",
+      "dom"
+    ]
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "compileOnSave": true
+}
