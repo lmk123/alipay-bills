@@ -1,6 +1,6 @@
 {
   "name": "alipay-bills",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "自动获取支付宝的账单信息。",
   "main": "libs/index.js",
   "types": "libs/index.d.ts",
@@ -8,7 +8,8 @@
     "libs"
   ],
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "prepublish": "rm -rf libs && npm run build"
   },
   "dependencies": {
     "phantomjs-prebuilt": "^2.1.15",
