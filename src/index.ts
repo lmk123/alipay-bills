@@ -10,6 +10,7 @@ const { titleIs, elementLocated } = until
 let driver: ThenableWebDriver | null
 let logged = false
 let timeId: NodeJS.Timer
+let stopped = false
 
 const event = new EventEmitter()
 
@@ -112,23 +113,24 @@ async function logout () {
 async function refresh () {
   await (driver as ThenableWebDriver).wait(elementLocated({ id: 'tradeRecordsIndex' }), 5000)
   const bills = await ((driver as ThenableWebDriver).executeScript(getBills) as Promise<Bill[]>)
-  // TODO 更精细的数据
   // TODO 获取后面几页的数据
   event.emit('new bills', bills)
   timeId = setTimeout(async () => {
+    if (stopped) return
     await (driver as ThenableWebDriver).navigate().refresh()
     refresh()
   }, options.interval)
 }
 
 export interface Bill {
-  day: string
-  time: string
-  name: string
-  orderNo: string
-  target: string
-  amount: string
-  status: string
+  createTime?: number // 账单的创建时间戳，精确到秒
+  memo: string // 备注
+  name: string // 名称
+  orderNo?: string // 订单号
+  tradeNo?: string // 交易号或者流水号
+  target: string // 对方
+  amount: number // 金额，复数表示支出，正数表示收入
+  status: string // 账单状态
 }
 
 /**
@@ -139,20 +141,60 @@ function getBills () {
 
   // 支付宝网站用了 jQuery 所以这里可以使用
   jQuery('#tradeRecordsIndex tbody tr').each(function () {
-    const tds = jQuery(this).find('td')
-    bills.push({
-      day: jQuery(tds[0]).find('.time-d').text().trim(),
-      time: jQuery(tds[0]).find('.time-h').text().trim(),
-      name: jQuery(tds[2]).find('a').text().trim(),
-      orderNo: jQuery(tds[3]).text().trim(),
-      target: jQuery(tds[4]).text().trim(),
-      amount: jQuery(tds[5]).text().trim(),
-      status: jQuery(tds[7]).text().trim()
+    const $tr = jQuery(this)
+    const bill: Bill = {
+      memo: $tr.find('td.memo .memo-info').text().trim(),
+      name: $tr.find('td.name a').text().trim(),
+      target: $tr.find('td.other .name').text().trim(),
+      amount: Number($tr.find('td.amount .amount-pay').text().trim().replace(/\s+/g, '')),
+      status: $tr.find('td.status').text().trim()
+    }
+
+    bills.push(bill)
+
+    // 通过「操作」里的「备注」链接获取到精确度到秒的时间戳
+    const link = $tr.find('.action [data-action="edit-memo"]').attr('data-link')
+    const match = link && link.match(/&createDate=\s*(\d+)/)
+    const createDateStr = match ? match[1] : null
+    if (createDateStr) {
+      const year = Number(createDateStr.slice(0, 4))
+      const month = Number(createDateStr.slice(4, 6)) - 1
+      const day = Number(createDateStr.slice(6, 8))
+      const hour = Number(createDateStr.slice(8, 10))
+      const minute = Number(createDateStr.slice(10, 12))
+      const second = Number(createDateStr.slice(12, 14))
+      bill.createTime = new Date(year, month, day, hour, minute, second).getTime()
+    }
+
+    // 获取账单的订单号、交易号或流水号。
+    // 个人对个人的账单只有流水号，
+    // 个人与商户之间的交易会有订单号和交易号。
+    // 支付宝对交易号和流水号是同等对待的。
+    const tradeStr = $tr.find('td.tradeNo').text().trim()
+    const nos = tradeStr.split('|')
+
+    nos.forEach(noStr => {
+      const [key, value] = noStr.trim().split(':')
+      switch (key) {
+        case '交易号':
+        case '流水号':
+          bill.tradeNo = value
+          break
+        case '订单号':
+          bill.orderNo = value
+          break
+        // 忽略其它情况
+      }
     })
   })
   return bills
 }
 
+/**
+ * 监听事件
+ * @param {string} name
+ * @param {function} handler
+ */
 export function on (name: string, handler: (...args: any[]) => any) {
   event.on(name, handler)
 }
@@ -174,5 +216,6 @@ export async function stop () {
   if (!driver) return
   await logout()
   await driver.quit()
+  stopped = true
   driver = null
 }
