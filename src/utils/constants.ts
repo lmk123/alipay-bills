@@ -8,3 +8,5 @@ export const URLs = {
 }
 
 export const BillPageTitle = '我的账单 - 支付宝'
+
+export const PER_PAGE_BILLS = 20 // 每一页有 20 条账单数据，可以通过这个数字判断是否还有下一页
