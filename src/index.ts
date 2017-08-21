@@ -187,6 +187,7 @@ function getBills () {
       }
     })
   })
+
   return bills
 }
 

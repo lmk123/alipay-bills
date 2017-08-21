@@ -8,8 +8,8 @@
     "libs"
   ],
   "scripts": {
-    "build": "tsc",
-    "prepublish": "rm -rf libs && npm run build"
+    "build": "rm -rf libs && tsc",
+    "prepublish": "npm run build"
   },
   "dependencies": {
     "@types/jquery": "^3.2.11",
