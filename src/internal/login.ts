@@ -5,7 +5,7 @@ import state from './state'
 import options from '../public/options'
 import { URLs, BillPageTitle } from '../utils/constants'
 import { until } from 'selenium-webdriver'
-const nosh = require('noshjs')
+import * as qs from 'querystring'
 
 const { titleIs } = until
 
@@ -16,7 +16,7 @@ async function login (): Promise<void> {
   try {
     // 跳转到登陆页
     await log('正在跳转到登陆页……')
-    await driver.get(URLs.login + '?goto=' + encodeURIComponent(URLs.billsIndex + '?' + nosh.obj2qs(options.pageParams)))
+    await driver.get(URLs.login + '?goto=' + encodeURIComponent(URLs.billsIndex + '?' + qs.stringify(options.pageParams)))
     // 输入用户名
     await log('正在输入用户名……')
     await humanInput(driver.findElement({ id: 'J-input-user' }), state.user)
