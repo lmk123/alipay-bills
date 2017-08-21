@@ -1,3 +1,4 @@
+import { stringify } from 'querystring'
 import log from '../utils/log'
 import driver from '../utils/driver'
 import humanInput from '../utils/human-input'
@@ -5,7 +6,6 @@ import state from './state'
 import options from '../public/options'
 import { URLs, BillPageTitle } from '../utils/constants'
 import { until } from 'selenium-webdriver'
-import * as qs from 'querystring'
 
 const { titleIs } = until
 
@@ -16,7 +16,7 @@ async function login (): Promise<void> {
   try {
     // 跳转到登陆页
     await log('正在跳转到登陆页……')
-    await driver.get(URLs.login + '?goto=' + encodeURIComponent(URLs.billsIndex + '?' + qs.stringify(options.pageParams)))
+    await driver.get(URLs.login + '?goto=' + encodeURIComponent(URLs.billsIndex + '?' + stringify(options.pageParams)))
     // 输入用户名
     await log('正在输入用户名……')
     await humanInput(driver.findElement({ id: 'J-input-user' }), state.user)
