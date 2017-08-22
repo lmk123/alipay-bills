@@ -7,10 +7,12 @@ import { URLs, BillPageTitle } from './utils/constants'
 
 const { titleIs, elementLocated } = until
 
-let driver: ThenableWebDriver | null
+let driver: ThenableWebDriver
 let logged = false
 let timeId: NodeJS.Timer
-let stopped = false
+let stopped = true
+let lastTradeNo: string
+let refreshing: Promise<void>
 
 const event = new EventEmitter()
 
@@ -37,7 +39,7 @@ function log (msg: any) {
 }
 
 /**
- * 模拟人类的输入行为，即输入每个字符时间隔一段时间
+ * 模拟人类的输入行为，输入每个字符之间间隔一段时间
  * @param {WebElementPromise} ele
  * @param {string} str
  * @return {Promise<void>}
@@ -62,7 +64,7 @@ async function login (user: string, pwd: string): Promise<void> {
   try {
     // 跳转到登陆页
     await log('正在跳转到登陆页……')
-    await driver.get(URLs.login + '?goto=' + encodeURIComponent(URLs.billsIndex + '?' + stringify(options.params)))
+    await driver.get(URLs.login + '?goto=' + encodeURIComponent(URLs.billsIndex))
     // 输入用户名
     await log('正在输入用户名……')
     await humanInput(driver.findElement({ id: 'J-input-user' }), user)
@@ -82,7 +84,7 @@ async function login (user: string, pwd: string): Promise<void> {
     const elements = await driver.findElements({ id: 'main' })
     if (!elements.length) {
       await log('检测到当前是标准版账单页，正在跳转到高级版账单页……')
-      await driver.get(URLs.billsSwitch + '?' + stringify(options.params))
+      await driver.get(URLs.billsSwitch)
       await driver.wait(elementLocated({ id: 'main' }), 5000, '5 秒内没有跳转到高级版账单页')
     }
 
@@ -100,9 +102,11 @@ async function login (user: string, pwd: string): Promise<void> {
  */
 async function logout () {
   if (driver && logged) {
+    log('准备登出账号……')
     logged = false
     clearTimeout(timeId)
     await driver.get(URLs.logout)
+    log('已登出账号。')
   }
 }
 
@@ -111,15 +115,76 @@ async function logout () {
  * @return {Promise<void>}
  */
 async function refresh () {
-  await (driver as ThenableWebDriver).wait(elementLocated({ id: 'tradeRecordsIndex' }), 5000)
-  const bills = await ((driver as ThenableWebDriver).executeScript(getBills) as Promise<Bill[]>)
-  // TODO 获取后面几页的数据
-  event.emit('new bills', bills)
-  timeId = setTimeout(async () => {
-    if (stopped) return
-    await (driver as ThenableWebDriver).navigate().refresh()
-    refresh()
-  }, options.interval)
+  if (stopped) return
+  refreshing = new Promise(async resolve => {
+    const bills = await query(lastTradeNo)
+
+    if (bills.length) {
+      lastTradeNo = (bills[0].tradeNo as string)
+      event.emit('new bills', bills)
+    }
+
+    resolve()
+  })
+
+  timeId = setTimeout(refresh, options.interval)
+}
+
+/**
+ * 查询账单数据
+ * @param {string} tradeNo - 根据流水号判断订单查询应该何时结束
+ * @param params - 页面参数
+ * @return {Promise<Bill[]>}
+ */
+async function query (tradeNo?: string, params = options.params) {
+  if (!logged) return Promise.reject(new Error('Login first.'))
+  const bills: Bill[] = []
+  let page = 1
+
+  async function queryPage (): Promise<void> {
+    if (!driver) return
+
+    await driver.get(URLs.billsAdvanced + '?' + stringify(Object.assign({ page }, params)))
+    await driver.wait(elementLocated({ id: 'tradeRecordsIndex' }), 5000)
+
+    const pageBills = await (driver.executeScript(getBills) as Promise<Bill[]>)
+
+    // 如果没有设置终点流水号，则只返回第一页的数据
+    if (!tradeNo) {
+      bills.push(...pageBills)
+      return
+    }
+
+    // 查找这一页的账单内是否有匹配的流水号
+    let tradeIndex
+    pageBills.some((bill, index) => {
+      if (bill.tradeNo === tradeNo) {
+        tradeIndex = index
+        return true
+      }
+      return false
+    })
+
+    // 如果找到了匹配的流水号，则将前面的账单数据推入数组中并中断查询
+    if (typeof tradeIndex === 'number') {
+      bills.push(...pageBills.slice(0, tradeIndex))
+      return
+    }
+
+    // 没有找到匹配的流水号，则把这页数据全都推入数组
+    bills.push(...pageBills)
+
+    // 如果还有下一页数据，则接着查询
+    const els = await driver.findElements({ className: 'page-next' })
+    if (els.length) {
+      page += 1
+      return queryPage()
+    }
+  }
+
+  await queryPage()
+
+  return bills
 }
 
 export interface Bill {
@@ -183,7 +248,7 @@ function getBills () {
         case '订单号':
           bill.orderNo = value
           break
-        // 忽略其它情况
+          // 忽略其它情况
       }
     })
   })
@@ -205,18 +270,19 @@ export function on (name: string, handler: (...args: any[]) => any) {
  * @param {string} user - 用户名
  * @param {string} pwd - 密码
  */
-export function start (user: string, pwd: string) {
-  login(user, pwd).then(refresh)
+export async function start (user: string, pwd: string) {
+  if (!stopped) await stop()
+  const loginPromise = login(user, pwd)
+  loginPromise.then(refresh)
+  return loginPromise
 }
 
 /**
- * 停止刷新、退出登录并毁掉浏览器会话
+ * 停止刷新
  * @return {Promise<void>}
  */
 export async function stop () {
   if (!driver) return
-  await logout()
-  await driver.quit()
   stopped = true
-  driver = null
+  return refreshing
 }
